@@ -38,7 +38,7 @@ steps:
       - '--vpc-connector'
       - 'vpcpvtdev'
       - '--set-env-vars'
-      - 'GCP_PROJECT_ID=private-data-store-dev,GCS_BUCKET_NAME=co-ordinate-gmail-attachments'
+      - 'GCP_PROJECT_ID=projectname,GCS_BUCKET_NAME=co-ordinate-gmail-attachments'
       # ADMIN_TOKEN guards /admin/*. Store it in Secret Manager and expose it here.
       # (config.py also reads it straight from Secret Manager, so this line is
       #  optional if the runtime service account has secretAccessor.)
