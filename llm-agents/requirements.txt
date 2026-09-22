@@ -1,0 +1,9 @@
+litellm>=1.55
+langgraph>=0.2
+pydantic>=2.7
+
+# Config: resolves keys env var -> GCP Secret Manager (see ../config.py).
+google-cloud-secret-manager>=2.20.0
+
+# Optional: auto-load a .env file for local development.
+python-dotenv>=1.0

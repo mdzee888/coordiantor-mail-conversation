@@ -1,0 +1,30 @@
+python-dotenv>=1.0.1
+Flask>=3.0.3
+Werkzeug>=3.0.3
+requests>=2.32.0
+
+# Production WSGI server (Cloud Run entrypoint: gunicorn main:application)
+gunicorn>=22.0.0
+
+# AgentMail
+agentmail>=0.0.30
+svix>=1.24.0
+
+# Gmail / Google Workspace  (OAuth refresh-token credentials, no local consent)
+google-api-python-client>=2.130.0
+google-auth>=2.30.0
+
+# Microsoft 365 / Graph
+msal>=1.28.0
+
+# Database (GCP Cloud SQL for PostgreSQL)
+SQLAlchemy>=2.0.30
+psycopg[binary]>=3.1.18
+
+# Config / secrets
+google-cloud-secret-manager>=2.20.0
+
+# LLM agents (pipeline.py -> llm-agents/*.py)
+litellm>=1.55
+langgraph>=0.2
+pydantic>=2.7

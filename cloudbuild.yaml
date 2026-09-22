@@ -1,0 +1,55 @@
+steps:
+  # Build using Docker
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/gmail-service-repo/coordinator-auto-reply-service', '.']
+
+  # Push to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/gmail-service-repo/coordinator-auto-reply-service']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'coordinator-auto-reply-service'
+      - '--image'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/gmail-service-repo/coordinator-auto-reply-service'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '2Gi'
+      - '--cpu'
+      - '2'
+      - '--timeout'
+      - '300s'
+      - '--port'
+      - '8080'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '100'
+      - '--concurrency'
+      - '1'
+      - '--vpc-connector'
+      - 'vpcpvtdev'
+      - '--set-env-vars'
+      - 'GCP_PROJECT_ID=private-data-store-dev,GCS_BUCKET_NAME=co-ordinate-gmail-attachments'
+      # ADMIN_TOKEN guards /admin/*. Store it in Secret Manager and expose it here.
+      # (config.py also reads it straight from Secret Manager, so this line is
+      #  optional if the runtime service account has secretAccessor.)
+      - '--set-secrets'
+      - 'ADMIN_TOKEN=ADMIN_TOKEN:latest'
+      # The runtime SA needs roles/secretmanager.secretAccessor on the project
+      # for GOOGLE_MAIL / AGENTMAIL_CONFIG / MS365_Mail / COORDINATOR_DB_CONNECTION
+      # / GEMINI_LITE / ADMIN_TOKEN.
+
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/gmail-service-repo/coordinator-auto-reply-service'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

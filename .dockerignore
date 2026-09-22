@@ -1,0 +1,34 @@
+# --- python / build ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+build/
+dist/
+
+# --- virtualenv ---
+venv/
+.venv/
+env/
+
+# --- secrets / local config (values come from Secret Manager at runtime) ---
+.env
+.env.*
+!.env.example
+google_client_secret.json
+gmail_token.json
+*.pem
+
+# --- generated / ephemeral runtime state ---
+gmail_last_history.json
+m365_subscription.json
+
+# --- vcs / editor / docs ---
+.git/
+.gitignore
+.dockerignore
+.vscode/
+.idea/
+*.md
+!README.md

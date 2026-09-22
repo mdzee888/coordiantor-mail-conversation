@@ -1,0 +1,139 @@
+// schema.dbml - the coordinator's PostgreSQL schema (Cloud SQL), as DBML.
+// Mirrors db/dbmodel.py exactly - same tables, columns, types, defaults,
+// enums, indexes, and foreign keys. No external/unrelated tables added.
+// View at https://dbdiagram.io (paste this file in) or any DBML renderer.
+//
+// AI email-coordination schema. Every primary key is TEXT, server-generated
+// as '<PREFIX>-' || gen_random_uuid()::text:
+//   oem_companies        OEM-<uuid>
+//   whitelist_senders    WLS-<uuid>
+//   campaigns            CMP-<uuid>
+//   campaign_suppliers   SUP-<uuid>
+//   email_conversations  CONV-<uuid>
+
+Enum campaign_supplier_status {
+  pending
+  in_progress
+  completed
+}
+
+Enum conversation_direction {
+  INCOMING
+  OUTGOING
+}
+
+Table oem_companies {
+  id text [pk, default: `('OEM-' || gen_random_uuid()::text)`, note: 'server-generated']
+  company_name text [not null]
+  subscribed boolean [not null, default: true]
+  started_at timestamptz [not null]
+  ended_at timestamptz [not null]
+  api_use_key jsonb [null]
+  created_at timestamptz [not null, default: `now()`]
+
+  Note: 'A paying customer organisation and its subscription window.'
+}
+
+Table whitelist_senders {
+  id text [pk, default: `('WLS-' || gen_random_uuid()::text)`]
+  oem_company_id text [null]
+  oem_user_name text [not null]
+  oem_user_email text [not null, unique]
+  oem_user_phone_number text [null]
+  is_active boolean [default: true]
+  created_at timestamptz [default: `now()`]
+
+  indexes {
+    oem_company_id [name: 'idx_whitelist_oem_company']
+  }
+
+  Note: 'People at an OEM company allowed to ask the coordinator to start work.'
+}
+
+Table campaigns {
+  id text [pk, default: `('CMP-' || gen_random_uuid()::text)`]
+  oem_company_id text [not null]
+  title text [not null]
+  org_email citext [not null]
+  summary jsonb [not null, note: 'objective / instructions / important_information / cc_emails / bcc_emails / deadline']
+  addl_email citext [null]
+  is_active boolean [default: true]
+  total_suppliers integer [not null, default: 0]
+  started_at timestamptz [not null, default: `now()`]
+  ended_at timestamptz [null]
+  gcs_raw_payload_path text [null]
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    (oem_company_id, is_active) [name: 'idx_campaigns_oem_active']
+  }
+
+  Note: 'One outreach request - a requirement summary chased across one or more suppliers.'
+}
+
+Table campaign_suppliers {
+  id text [pk, default: `('SUP-' || gen_random_uuid()::text)`]
+  campaign_id text [not null]
+  user_name text [null]
+  user_email citext [not null]
+  user_phone_number text [null]
+  company_name text [null]
+  company_domain text [null]
+  response_summary jsonb [null, note: 'cumulative facts the supplier has provided so far']
+  requirements_fulfillment jsonb [default: `'{}'::jsonb`]
+  status campaign_supplier_status [not null, default: 'pending']
+  assigned_at timestamptz [not null, default: `now()`]
+  completed_at timestamptz [null]
+  reminder_count integer [not null, default: 0]
+  last_reminder_sent_at timestamptz [null]
+
+  // out-of-office & alternate routing
+  alternate_user_name text [null]
+  alternate_email citext [null]
+  alternate_phone varchar(50) [null]
+  out_of_office boolean [not null, default: false]
+  is_active boolean [not null, default: true]
+  ooo_till timestamptz [null]
+
+  indexes {
+    (campaign_id, user_email) [unique, name: 'uq_campaign_user_email']
+    (campaign_id, is_active) [name: 'idx_supplier_campaign_active']
+    (status, ooo_till) [name: 'idx_supplier_status_ooo']
+    is_active [name: 'idx_supplier_is_active']
+    ooo_till [name: 'idx_supplier_ooo_till']
+  }
+
+  Note: 'One row per supplier a campaign is chasing, plus their progress and OOO/alternate routing.'
+}
+
+Table email_conversations {
+  id text [pk, default: `('CONV-' || gen_random_uuid()::text)`]
+  campaign_id text [null]
+  campaign_supplier_id text [null]
+  message_id text [not null, unique]
+  thread_id text [not null]
+  in_reply_to text [null]
+  sender_email citext [not null]
+  recipients jsonb [not null, default: `'{"to": [], "cc": [], "bcc": []}'::jsonb`]
+  direction conversation_direction [not null]
+  subject text [null]
+  body_text text [null]
+  attachment_urls jsonb [default: `'[]'::jsonb`]
+  processing_status varchar(50) [not null, default: 'PROCESSED']
+  created_at timestamptz [not null, default: `now()`]
+
+  indexes {
+    campaign_id [name: 'idx_conversation_campaign']
+    campaign_supplier_id [name: 'idx_conversation_supplier']
+    thread_id [name: 'idx_conversation_thread']
+    sender_email [name: 'idx_conversation_sender']
+  }
+
+  Note: 'Every email in either direction - the full audit trail / thread history.'
+}
+
+Ref: whitelist_senders.oem_company_id > oem_companies.id [delete: set null]
+Ref: campaigns.oem_company_id > oem_companies.id [delete: restrict]
+Ref: campaign_suppliers.campaign_id > campaigns.id [delete: cascade]
+Ref: email_conversations.campaign_id > campaigns.id [delete: set null]
+Ref: email_conversations.campaign_supplier_id > campaign_suppliers.id [delete: set null]
